@@ -92,6 +92,49 @@ def money(cents: int, restaurant: dict | None) -> str:
     return menu_service.cents_to_usd(cents, currency)
 
 
+def latest_order_contact(user_id: int, restaurant_id: int) -> dict:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT phone, address, latitude, longitude
+            FROM orders
+            WHERE user_id = ? AND restaurant_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (user_id, restaurant_id),
+        ).fetchone()
+    return dict(row) if row else {}
+
+
+def has_delivery_details(details: dict) -> bool:
+    return bool(details.get("address") or (details.get("latitude") is not None and details.get("longitude") is not None))
+
+
+def saved_delivery_text(details: dict, language: str) -> str:
+    phone = details.get("phone") or t(language, "not_saved")
+    if details.get("address"):
+        address = details["address"]
+    elif details.get("latitude") is not None and details.get("longitude") is not None:
+        address = t(language, "location_shared")
+    else:
+        address = t(language, "not_saved")
+    return (
+        f"<b>{h(t(language, 'saved_delivery_title'))}</b>\n\n"
+        f"{h(t(language, 'saved_delivery_intro'))}\n\n"
+        f"📍 <b>{h(t(language, 'address_label'))}:</b> {h(address)}\n"
+        f"📞 <b>{h(t(language, 'phone_label'))}:</b> {h(phone)}"
+    )
+
+
+async def ask_order_notes(message: Message | None, state: FSMContext, language: str) -> None:
+    if not message:
+        return
+    await state.set_state(Checkout.waiting_for_notes)
+    await message.answer(t(language, "notes_question"), reply_markup=ReplyKeyboardRemove())
+    await message.answer(t(language, "notes_optional"), reply_markup=keyboards.skip_notes_keyboard(language))
+
+
 def format_cart(cart: dict, language: str, restaurant: dict) -> str:
     if not cart["items"]:
         return t(language, "cart_empty")
@@ -178,10 +221,11 @@ def format_order_summary(
         "",
     ]
     if include_customer:
+        phone = order.get("phone") or t(language, "phone_not_required")
         lines.extend(
             [
                 f"👤 <b>{h(t(language, 'customer_label'))}:</b> {h(order.get('customer_name') or 'Customer')}",
-                f"📞 <b>{h(t(language, 'phone_label'))}:</b> {h(order['phone'])}",
+                f"📞 <b>{h(t(language, 'phone_label'))}:</b> {h(phone)}",
                 f"🚚 <b>{h(t(language, 'type_label'))}:</b> {h(fulfillment.title())}",
             ]
         )
@@ -204,12 +248,13 @@ def format_order_summary(
 
 def format_staff_order(order: dict, restaurant: dict) -> str:
     customer = order.get("customer_name") or "Customer"
+    phone = order.get("phone") or "Not required for pickup"
     lines = [
         "🚨 <b>New Order</b>",
         f"🧾 <b>{h(order['order_code'])}</b>",
         "",
         f"👤 <b>Customer:</b> {h(customer)}",
-        f"📞 <b>Phone:</b> {h(order['phone'])}",
+        f"📞 <b>Phone:</b> {h(phone)}",
         f"🚚 <b>Type:</b> {h(order['fulfillment_type'].title())}",
     ]
     if order.get("address"):
@@ -528,6 +573,17 @@ async def add_to_cart(callback: CallbackQuery) -> None:
         await callback.answer(t(language, "sold_out"), show_alert=True)
         return
     await callback.answer(t(language, "added_to_cart", item=item_name(item, language)))
+    cart = cart_service.get_cart(callback.from_user.id, language=language, restaurant_id=restaurant["id"])
+    text = (
+        f"✅ <b>{h(item_name(item, language))}</b> {h(t(language, 'added_to_order_short'))}\n\n"
+        f"🛒 {h(t(language, 'current_total'))}: <b>{money(cart['subtotal_cents'], restaurant)}</b>\n\n"
+        f"{h(t(language, 'after_add_prompt'))}"
+    )
+    if callback.message:
+        await callback.message.answer(
+            text,
+            reply_markup=keyboards.after_add_to_cart_keyboard(int(item["category_id"]), language),
+        )
 
 
 @router.callback_query(F.data == "cart:view")
@@ -626,16 +682,59 @@ async def choose_fulfillment(callback: CallbackQuery, state: FSMContext) -> None
     if fulfillment_type == "pickup" and not restaurant["pickup_enabled"]:
         await callback.answer("Pickup is not available for this restaurant.", show_alert=True)
         return
-    await state.update_data(fulfillment_type=fulfillment_type, restaurant_id=restaurant["id"])
+    saved_contact = latest_order_contact(callback.from_user.id, restaurant["id"])
+    saved_phone = saved_contact.get("phone") or ""
+    await state.update_data(fulfillment_type=fulfillment_type, restaurant_id=restaurant["id"], saved_phone=saved_phone)
     await callback.answer()
     if fulfillment_type == "delivery":
+        if has_delivery_details(saved_contact):
+            await state.update_data(
+                saved_address=saved_contact.get("address"),
+                saved_latitude=saved_contact.get("latitude"),
+                saved_longitude=saved_contact.get("longitude"),
+            )
+            if callback.message:
+                await safe_edit_or_answer(
+                    callback.message,
+                    saved_delivery_text(saved_contact, language),
+                    keyboards.saved_delivery_keyboard(language),
+                )
+            return
         await state.set_state(Checkout.waiting_for_delivery_location)
         if callback.message:
             await callback.message.answer(t(language, "delivery_location"), reply_markup=keyboards.share_location_keyboard(language))
     else:
-        await state.set_state(Checkout.waiting_for_phone)
-        if callback.message:
-            await callback.message.answer(t(language, "phone_question"), reply_markup=keyboards.share_phone_keyboard(language))
+        await state.update_data(phone=saved_phone)
+        await ask_order_notes(callback.message, state, language)
+
+
+@router.callback_query(F.data == "checkout:delivery:saved")
+async def use_saved_delivery(callback: CallbackQuery, state: FSMContext) -> None:
+    language = language_for(callback)
+    data = await state.get_data()
+    await state.update_data(
+        address=data.get("saved_address"),
+        latitude=data.get("saved_latitude"),
+        longitude=data.get("saved_longitude"),
+    )
+    saved_phone = data.get("saved_phone") or ""
+    await callback.answer()
+    if saved_phone:
+        await state.update_data(phone=saved_phone)
+        await ask_order_notes(callback.message, state, language)
+        return
+    await state.set_state(Checkout.waiting_for_phone)
+    if callback.message:
+        await callback.message.answer(t(language, "phone_after_location"), reply_markup=keyboards.share_phone_keyboard(language))
+
+
+@router.callback_query(F.data == "checkout:delivery:new")
+async def change_delivery_details(callback: CallbackQuery, state: FSMContext) -> None:
+    language = language_for(callback)
+    await callback.answer()
+    await state.set_state(Checkout.waiting_for_delivery_location)
+    if callback.message:
+        await callback.message.answer(t(language, "delivery_location"), reply_markup=keyboards.share_location_keyboard(language))
 
 
 @router.message(Checkout.waiting_for_delivery_location)
@@ -647,6 +746,11 @@ async def receive_delivery_location(message: Message, state: FSMContext) -> None
         await state.update_data(address=message.text.strip(), latitude=None, longitude=None)
     else:
         await message.answer(t(language, "delivery_location_invalid"))
+        return
+    data = await state.get_data()
+    if data.get("saved_phone"):
+        await state.update_data(phone=data["saved_phone"])
+        await ask_order_notes(message, state, language)
         return
     await state.set_state(Checkout.waiting_for_phone)
     await message.answer(t(language, "phone_after_location"), reply_markup=keyboards.share_phone_keyboard(language))
@@ -669,9 +773,7 @@ async def receive_phone(message: Message, state: FSMContext) -> None:
         await message.answer(t(language, "phone_invalid"))
         return
     await state.update_data(phone=phone)
-    await state.set_state(Checkout.waiting_for_notes)
-    await message.answer(t(language, "notes_question"), reply_markup=ReplyKeyboardRemove())
-    await message.answer(t(language, "notes_optional"), reply_markup=keyboards.skip_notes_keyboard(language))
+    await ask_order_notes(message, state, language)
 
 
 @router.callback_query(F.data == "checkout:skip_notes")
@@ -837,7 +939,7 @@ async def finalize_order(
         order = order_service.create_order(
             user_id=user.id,
             customer_name=user.full_name,
-            phone=data["phone"],
+            phone=data.get("phone") or "",
             fulfillment_type=data["fulfillment_type"],
             restaurant_id=restaurant_id,
             address=data.get("address"),

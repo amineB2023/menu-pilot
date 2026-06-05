@@ -155,6 +155,16 @@ def item_detail_keyboard(item_id: int, category_id: int, language: str = "en", a
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def after_add_to_cart_keyboard(category_id: int, language: str = "en") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t(language, "confirm_order_now"), callback_data="checkout:start")],
+            [InlineKeyboardButton(text=t(language, "add_more_from_category"), callback_data=f"cat:{category_id}")],
+            [InlineKeyboardButton(text=t(language, "my_cart"), callback_data="cart:view")],
+        ]
+    )
+
+
 def cart_keyboard(items: list[dict], language: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for item in items:
@@ -225,6 +235,16 @@ def share_phone_keyboard(language: str = "en") -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         one_time_keyboard=True,
         input_field_placeholder=t(language, "share_phone_placeholder"),
+    )
+
+
+def saved_delivery_keyboard(language: str = "en") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t(language, "use_saved_delivery"), callback_data="checkout:delivery:saved")],
+            [InlineKeyboardButton(text=t(language, "change_delivery_details"), callback_data="checkout:delivery:new")],
+            [InlineKeyboardButton(text=t(language, "cancel"), callback_data="checkout:cancel")],
+        ]
     )
 
 

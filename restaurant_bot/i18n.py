@@ -56,6 +56,11 @@ TRANSLATIONS = {
         "loyalty_earn_line": "🎁 Earn about {points} point(s) with this item.",
         "add_to_cart": "🛒 Add to Order",
         "added_to_cart": "Added {item} to cart.",
+        "added_to_order_short": "was added to your order.",
+        "current_total": "Current total",
+        "after_add_prompt": "Confirm your order now, or add more from this category.",
+        "confirm_order_now": "✅ Confirm order now",
+        "add_more_from_category": "➕ Add more from this category",
         "not_available": "This item is not available.",
         "sold_out": "❌ Sold out",
         "cart_empty": "🛒 <b>My Order</b>\n\nYour order is empty.",
@@ -72,6 +77,11 @@ TRANSLATIONS = {
         "checkout_cancelled": "Checkout cancelled.",
         "delivery_location": "Please share your delivery location or type your full address.",
         "delivery_location_invalid": "Please share a location or type a more complete delivery address.",
+        "saved_delivery_title": "Saved delivery details",
+        "saved_delivery_intro": "Use these details from your previous order?",
+        "use_saved_delivery": "✅ Use saved delivery details",
+        "change_delivery_details": "✏️ Change address/location",
+        "not_saved": "Not saved",
         "phone_question": "📞 <b>Phone Number</b>\nPlease send your phone number so the restaurant can contact you.",
         "phone_after_location": "📞 <b>Phone Number</b>\nThanks. Please send your phone number so the restaurant can contact you.",
         "phone_invalid": "Please send a valid phone number, for example +85512345678.",
@@ -114,6 +124,7 @@ TRANSLATIONS = {
         "update_thanks": "Thank you! We’ll keep you updated.",
         "customer_label": "Customer",
         "phone_label": "Phone",
+        "phone_not_required": "Not required for pickup",
         "type_label": "Type",
         "address_label": "Address",
         "items_label": "Items",
@@ -183,6 +194,11 @@ TRANSLATIONS = {
         "loyalty_earn_line": "🎁 此菜品约可获得 {points} 积分。",
         "add_to_cart": "🛒 加入订单",
         "added_to_cart": "已将 {item} 加入购物车。",
+        "added_to_order_short": "已加入您的订单。",
+        "current_total": "当前总计",
+        "after_add_prompt": "现在确认订单，或继续添加此分类的菜品。",
+        "confirm_order_now": "✅ 现在确认订单",
+        "add_more_from_category": "➕ 继续添加此分类",
         "not_available": "此菜品暂时不可用。",
         "sold_out": "❌ 已售罄",
         "cart_empty": "🛒 <b>我的订单篮</b>\n\n您的订单篮是空的。",
@@ -199,6 +215,11 @@ TRANSLATIONS = {
         "checkout_cancelled": "结账已取消。",
         "delivery_location": "请分享配送位置，或输入完整地址。",
         "delivery_location_invalid": "请分享位置，或输入更完整的配送地址。",
+        "saved_delivery_title": "已保存的配送信息",
+        "saved_delivery_intro": "使用您上次订单的这些信息吗？",
+        "use_saved_delivery": "✅ 使用已保存配送信息",
+        "change_delivery_details": "✏️ 更改地址/位置",
+        "not_saved": "未保存",
         "phone_question": "📞 <b>电话号码</b>\n请发送您的电话号码，方便餐厅联系您。",
         "phone_after_location": "📞 <b>电话号码</b>\n谢谢。请发送您的电话号码，方便餐厅联系您。",
         "phone_invalid": "请发送有效电话号码，例如 +85512345678。",
@@ -241,6 +262,7 @@ TRANSLATIONS = {
         "update_thanks": "谢谢！我们会继续通知您。",
         "customer_label": "顾客",
         "phone_label": "电话",
+        "phone_not_required": "自取无需电话",
         "type_label": "类型",
         "address_label": "地址",
         "items_label": "菜品",
@@ -389,6 +411,23 @@ TRANSLATIONS = {
         "status_message_pending": "ការបញ្ជាទិញរបស់អ្នកកំពុងរង់ចាំបុគ្គលិកពិនិត្យ។",
     },
 }
+
+
+TRANSLATIONS["kh"].update(
+    {
+        "added_to_order_short": "ត្រូវបានបន្ថែមទៅការបញ្ជាទិញរបស់អ្នក។",
+        "current_total": "សរុបបច្ចុប្បន្ន",
+        "after_add_prompt": "បញ្ជាក់ការបញ្ជាទិញឥឡូវនេះ ឬបន្ថែមមុខម្ហូបពីប្រភេទនេះទៀត។",
+        "confirm_order_now": "✅ បញ្ជាក់ការបញ្ជាទិញឥឡូវនេះ",
+        "add_more_from_category": "➕ បន្ថែមពីប្រភេទនេះទៀត",
+        "saved_delivery_title": "ព័ត៌មានដឹកជញ្ជូនដែលបានរក្សាទុក",
+        "saved_delivery_intro": "ប្រើព័ត៌មានពីការបញ្ជាទិញមុនរបស់អ្នកទេ?",
+        "use_saved_delivery": "✅ ប្រើព័ត៌មានដឹកជញ្ជូនដែលបានរក្សាទុក",
+        "change_delivery_details": "✏️ ប្តូរអាសយដ្ឋាន/ទីតាំង",
+        "not_saved": "មិនបានរក្សាទុក",
+        "phone_not_required": "មិនចាំបាច់សម្រាប់មកយក",
+    }
+)
 
 
 def normalize_lang(language: str | None) -> str:
