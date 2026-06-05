@@ -1,0 +1,6 @@
+.env
+restaurant_bot/data/restaurant.db
+venv/
+__pycache__/
+*.pyc
+backups/
